@@ -1,0 +1,19 @@
+# Environment files
+.env
+
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# IDE configs
+.idea/
+.vscode/
+
+# Generated files
+*.iml
