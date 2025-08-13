@@ -95,7 +95,7 @@ class _HangmanPainter extends CustomPainter {
     void _progressCircle(Offset c, double r, double frac, [double w = 4]) {
       frac = frac.clamp(0.0, 1.0);
       final rect = Rect.fromCircle(center: c, radius: r);
-      const start = -3.14159;              // -π (soldan başlasın)
+      const start = -3.14159; // -π (soldan başlasın)
       final sweepRed = 3.14159 * 2 * frac; // kırmızı yay
       final sweepBase = 3.14159 * 2 - sweepRed;
 
@@ -110,24 +110,25 @@ class _HangmanPainter extends CustomPainter {
       // kırmızı yay
       canvas.drawArc(rect, start, sweepRed, false, _p(hiColor, w));
       // kalan baz yay
-      canvas.drawArc(rect, start + sweepRed, sweepBase, false, _p(baseColor, w));
+      canvas.drawArc(
+          rect, start + sweepRed, sweepBase, false, _p(baseColor, w));
     }
 
     // Oranlar ve noktalar
     final w = size.width;
     final h = size.height;
 
-    final baseY   = h * 0.90;
-    final postX   = w * 0.18;
-    final topY    = h * 0.10;
+    final baseY = h * 0.90;
+    final postX = w * 0.18;
+    final topY = h * 0.10;
     final beamEnd = w * 0.62;
-    final ropeX   = w * 0.50;
-    final headCY  = h * 0.33;
-    final headR   = h * 0.07;
+    final ropeX = w * 0.50;
+    final headCY = h * 0.33;
+    final headR = h * 0.07;
 
     final bodyTop = headCY + headR;
     final bodyBot = h * 0.62;
-    final armY    = h * 0.42;
+    final armY = h * 0.42;
 
     // 10 birimlik parçalar sırası (her biri 1 birim):
     // 0 zemin, 1 direk, 2 kiriş, 3 ip, 4 kafa, 5 gövde, 6 sol kol, 7 sağ kol, 8 sol bacak, 9 sağ bacak

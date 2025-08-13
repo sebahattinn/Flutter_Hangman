@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:get/get.dart';
 
 class UsecaseController extends GetxController {
-  
   final RxInt roundSeconds = 45.obs;
 
   /// Timer kısımları

@@ -1,16 +1,18 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'settings_controller.dart';
-import '../services/dio_get_movie.dart';
-import '../services/dio_get_detail.dart';
+import 'package:hangman/Controller/settings_controller.dart';
+import 'package:hangman/Controller/usecase_controller.dart';
+import 'package:hangman/services/dio_get_movie.dart';
+import 'package:hangman/services/dio_get_detail.dart';
 
 class IndexController extends GetxController {
   late SettingsController settings;
 
   // --- Oyun durumu ---
-  final RxString _currentWord = 'ASLAN KRAL'.obs; // TR harf + boşluk (temizlenmiş)
-  final RxSet<String> guessed = <String>{}.obs;   // Sadece Türkçe büyük harfler
+  final RxString _currentWord =
+      'ASLAN KRAL'.obs; // TR harf + boşluk (temizlenmiş)
+  final RxSet<String> guessed = <String>{}.obs; // Sadece Türkçe büyük harfler
   final RxInt lives = 5.obs;
   final RxBool isGameOver = false.obs;
   final RxBool isWin = false.obs;
@@ -22,8 +24,8 @@ class IndexController extends GetxController {
 
   // --- Anti-repeat deste (deck) ---
   final Random _rnd = Random();
-  List<int> _deck = [];   // _movies içindeki index’lerin karıştırılmış hali
-  int _deckPos = 0;       // sıradaki kartın pozisyonu
+  List<int> _deck = []; // _movies içindeki index’lerin karıştırılmış hali
+  int _deckPos = 0; // sıradaki kartın pozisyonu
 
   // --- Getter'lar ---
   String get currentWord => _currentWord.value;
@@ -35,16 +37,19 @@ class IndexController extends GetxController {
       .join(' ');
 
   /// Yanlış tahminler
-  List<String> get wrongLetters =>
-      guessed.where((g) => g.length == 1 && !_currentWord.value.contains(g)).toList();
+  List<String> get wrongLetters => guessed
+      .where((g) => g.length == 1 && !_currentWord.value.contains(g))
+      .toList();
 
   /// Doğru tahminler
   List<String> get correctLetters =>
       guessed.where((g) => _currentWord.value.contains(g)).toList();
 
   /// Kalan açılmamış harf sayısı
-  int get remainingLettersCount =>
-      _currentWord.value.split('').where((ch) => ch != ' ' && !guessed.contains(ch)).length;
+  int get remainingLettersCount => _currentWord.value
+      .split('')
+      .where((ch) => ch != ' ' && !guessed.contains(ch))
+      .length;
 
   @override
   void onInit() {
@@ -151,7 +156,8 @@ class IndexController extends GetxController {
       }
     } else {
       final cleaned = settings.cleanTitleTr(word);
-      _currentWord.value = settings.isTitleAllowed(cleaned) ? cleaned : 'ASLAN KRAL';
+      _currentWord.value =
+          settings.isTitleAllowed(cleaned) ? cleaned : 'ASLAN KRAL';
       _currentMovieId.value = null;
     }
 
@@ -202,8 +208,9 @@ class IndexController extends GetxController {
     }
 
     // Doğru tahmin: tüm harfler açıldı mı?
-    final allRevealed =
-        _currentWord.value.split('').every((c) => c == ' ' || guessed.contains(c));
+    final allRevealed = _currentWord.value
+        .split('')
+        .every((c) => c == ' ' || guessed.contains(c));
     if (allRevealed) _endRound(win: true);
   }
 

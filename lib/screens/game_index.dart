@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../Controller/index_controller.dart';
-import '../widgets/hangman_figure.dart';
+
+import 'package:hangman/Controller/index_controller.dart';
+import 'package:hangman/widgets/hangman_figure.dart';
 
 class GameIndex extends StatefulWidget {
   const GameIndex({super.key});
@@ -82,58 +83,58 @@ class _GameIndexState extends State<GameIndex> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-  title: const Text('Adam Asmaca (GetX ile birlikte)'),
-  actions: [
-    PopupMenuButton<String>(
-      onSelected: (value) {
-        switch (value) {
-          case 'hint':
-            controller.showHint();
-            break;
-          case 'refresh':
-            Get.offAllNamed('/'); // index.dart route
-            break;
-          case 'exit':
-            Get.toNamed('/exist');
-            break;
-        }
-      },
-      itemBuilder: (BuildContext context) => [
-        const PopupMenuItem(
-          value: 'hint',
-          child: Row(
-            children: [
-              Icon(Icons.lightbulb, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('İpucu Göster'),
+        title: const Text('Adam Asmaca (GetX ile birlikte)'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.menu),
+            onSelected: (value) {
+              switch (value) {
+                case 'hint':
+                  controller.showHint();
+                  break;
+                case 'refresh':
+                  Get.offAllNamed('/'); // index.dart route
+                  break;
+                case 'exit':
+                  Get.toNamed('/exist');
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'hint',
+                child: Row(
+                  children: [
+                    Icon(Icons.lightbulb, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Text('İpucu Göster'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Yeniden Oyna'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'exit',
+                child: Row(
+                  children: [
+                    Icon(Icons.exit_to_app, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Oyundan Çık'),
+                  ],
+                ),
+              ),
             ],
           ),
-        ),
-        const PopupMenuItem(
-          value: 'refresh',
-          child: Row(
-            children: [
-              Icon(Icons.refresh, color: Colors.blue),
-              SizedBox(width: 8),
-              Text('Ana Ekrana Dön'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'exit',
-          child: Row(
-            children: [
-              Icon(Icons.exit_to_app, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Oyundan Çık'),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ],
+        ],
       ),
-    
       body: SafeArea(
         child: Obx(() {
           return Column(
@@ -226,7 +227,6 @@ class _GameIndexState extends State<GameIndex> {
               ),
               const SizedBox(height: 42),
 
-              
               const SizedBox(height: 25),
             ],
           );

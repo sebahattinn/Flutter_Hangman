@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../Controller/index_controller.dart';
-import '../Controller/settings_controller.dart';
+import 'package:hangman/Controller/index_controller.dart';
+import 'package:hangman/Controller/settings_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,24 +19,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late int _livesTemp;
 
   @override
-void initState() {
-  super.initState();
-  settings = Get.find<SettingsController>();
-  game = Get.find<IndexController>();
+  void initState() {
+    super.initState();
+    settings = Get.find<SettingsController>();
+    game = Get.find<IndexController>();
 
-  // Settings'teki mevcut hak sayısıyla başlat (RxInt → .value)
-  _livesTemp = settings.livesPerRound.value;
-}
+    // Settings'teki mevcut hak sayısıyla başlat (RxInt → .value)
+    _livesTemp = settings.livesPerRound.value;
+  }
 
-void _applyAndStartNewRound() {
-  // Değeri ayarlara yaz (RxInt → .value) ya da setter fonksiyonunu kullan
-  settings.livesPerRound.value = _livesTemp;
-  // alternatif: settings.setLivesPerRound(_livesTemp);
+  void _applyAndStartNewRound() {
+    // Değeri ayarlara yaz (RxInt → .value) ya da setter fonksiyonunu kullan
+    settings.livesPerRound.value = _livesTemp;
+    // alternatif: settings.setLivesPerRound(_livesTemp);
 
-  // Yeni turu başlat ve oyuna dön
-  game.startNewGame();
-  Get.offAllNamed('/game');
-}
+    // Yeni turu başlat ve oyuna dön
+    game.startNewGame();
+    Get.offAllNamed('/game');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,8 +100,6 @@ void _applyAndStartNewRound() {
           ),
 
           const SizedBox(height: 12),
-         
-        
 
           const SizedBox(height: 24),
           const Divider(),

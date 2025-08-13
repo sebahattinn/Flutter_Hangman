@@ -15,7 +15,7 @@ class ExistScreen extends StatelessWidget {
             const Text('Oyundan çıkmak istediğinize emin misiniz?',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-             const SizedBox(height: 8),
+            const SizedBox(height: 8),
             FilledButton(
               onPressed: () => Get.back(),
               child: const Text('Oyuna Devam Et'),
@@ -24,7 +24,6 @@ class ExistScreen extends StatelessWidget {
               onPressed: () => Get.offAllNamed('/'),
               child: const Text('Ana Menüye Dön'),
             ),
-           
           ],
         ),
       ),

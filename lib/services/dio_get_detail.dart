@@ -22,7 +22,8 @@ Future<Map<String, dynamic>> fetchMovieDetail(int movieId) async {
   }
   throw Exception('Geçersiz yanıt: ${res.statusCode}');
 }
-       //ipucu detaylarını oluştur, genre bilgilerini düzenli bir şekilde al
+
+//ipucu detaylarını oluştur, genre bilgilerini düzenli bir şekilde al
 Map<String, String> buildHintFields(Map<String, dynamic> detail) {
   final genres = (detail['genres'] as List<dynamic>?)
           ?.map((e) => e is Map ? e['name'] : null)

@@ -16,15 +16,16 @@ class SettingsController extends GetxController {
       };
 
   // ---- Başlık filtreleri ----
-  final excludeDigits = true.obs;       // sayı varsa ele
-  final onlyTrLetters = true.obs;       // sadece TR harf + boşluk
+  final excludeDigits = true.obs; // sayı varsa ele
+  final onlyTrLetters = true.obs; // sadece TR harf + boşluk
   final _reDigit = RegExp(r'\d');
   final _reTr = RegExp(r'^[A-Za-zÇĞİÖŞÜçğıöşüxw ]+$');
 
   /// Başlığı TR-upper yapar, yalnız TR harf + boşluk bırakır, fazla boşlukları tekler.
   String cleanTitleTr(String s) {
     final up = turkishUpper(s);
-    final kept = up.split('').where((c) => RegExp(r'[A-ZÇĞİÖŞÜXW ]').hasMatch(c)).join();
+    final kept =
+        up.split('').where((c) => RegExp(r'[A-ZÇĞİÖŞÜXW ]').hasMatch(c)).join();
     return kept.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
@@ -50,7 +51,37 @@ class SettingsController extends GetxController {
 
   // ---- Alfabe / karakter yardımcıları ----
   static const _alphabet = <String>{
-    'A','B','C','Ç','D','E','F','G','Ğ','H','I','İ','J','K','L','M','N','O','Ö','P','R','S','Ş','T','U','Ü','V','Y','Z','X','W'
+    'A',
+    'B',
+    'C',
+    'Ç',
+    'D',
+    'E',
+    'F',
+    'G',
+    'Ğ',
+    'H',
+    'I',
+    'İ',
+    'J',
+    'K',
+    'L',
+    'M',
+    'N',
+    'O',
+    'Ö',
+    'P',
+    'R',
+    'S',
+    'Ş',
+    'T',
+    'U',
+    'Ü',
+    'V',
+    'Y',
+    'Z',
+    'X',
+    'W'
   };
 
   bool isAllowedChar(String ch) => _alphabet.contains(ch);

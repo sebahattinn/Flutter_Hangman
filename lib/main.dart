@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 
-// CONTROLLER'lar
-import 'Controller/usecase_controller.dart';
-import 'Controller/index_controller.dart';
-import 'Controller/settings_controller.dart';
+// CONTROLLER'lar — tek ve tutarlı yol
+import 'package:hangman/Controller/usecase_controller.dart';
+import 'package:hangman/Controller/settings_controller.dart';
+import 'package:hangman/Controller/index_controller.dart';
 
 // EKRANLAR
-import 'screens/index.dart';          // <-- WelcomeScreen burada
-import 'screens/game_index.dart';
-import 'screens/settings_screen.dart';
-import 'screens/exist_screen.dart';
+import 'package:hangman/screens/index.dart';
+import 'package:hangman/screens/game_index.dart';
+import 'package:hangman/screens/settings_screen.dart';
+import 'package:hangman/screens/exist_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,9 +22,9 @@ Future<void> main() async {
 class AppBindings extends Bindings {
   @override
   void dependencies() {
-    Get.put(SettingsController(), permanent: true);                   // 1
+    Get.put(SettingsController(), permanent: true); // 1
     Get.put<UsecaseController>(UsecaseController(), permanent: true); // 2
-    Get.put<IndexController>(IndexController(), permanent: true);     // 3
+    Get.put<IndexController>(IndexController(), permanent: true); // 3
   }
 }
 
@@ -54,12 +54,13 @@ class MyApp extends StatelessWidget {
         // Ayarlar
         GetPage(
           name: '/settings',
-          page: () =>  SettingsScreen(),
+          page: () => SettingsScreen(),
           transition: Transition.downToUp,
         ),
         // Çıkış
         GetPage(
-          name: '/exist', // Projende 'exist_screen.dart' kullandığın için rota adını korudum
+          name:
+              '/exist', // Projende 'exist_screen.dart' kullandığın için rota adını korudum
           page: () => const ExistScreen(),
           transition: Transition.cupertino,
         ),
