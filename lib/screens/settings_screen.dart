@@ -1,105 +1,122 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:hangman/Controller/settings_controller.dart';
+import 'package:get/get.dart';
 
-class SettingsScreen extends StatelessWidget {
+import '../Controller/index_controller.dart';
+import '../Controller/settings_controller.dart';
+
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late final SettingsController settings;
+  late final IndexController game;
+
+  // Yerel geçici değer: UI üzerinde oynarız, kaydederken Settings'e yazarız
+  late int _livesTemp;
+
+  @override
+void initState() {
+  super.initState();
+  settings = Get.find<SettingsController>();
+  game = Get.find<IndexController>();
+
+  // Settings'teki mevcut hak sayısıyla başlat (RxInt → .value)
+  _livesTemp = settings.livesPerRound.value;
+}
+
+void _applyAndStartNewRound() {
+  // Değeri ayarlara yaz (RxInt → .value) ya da setter fonksiyonunu kullan
+  settings.livesPerRound.value = _livesTemp;
+  // alternatif: settings.setLivesPerRound(_livesTemp);
+
+  // Yeni turu başlat ve oyuna dön
+  game.startNewGame();
+  Get.offAllNamed('/game');
+}
+
+  @override
   Widget build(BuildContext context) {
-    final controller = context.watch<SettingsController>();
+    final t = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Ayarlar")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Oyun Modu",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            _buildModeSelector(controller),
-            const SizedBox(height: 24),
-            const Text("Zorluk",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            _buildDifficultySelector(controller),
-            if (controller.mode == GameMode.classic) ...[
-              const SizedBox(height: 24),
-              const Text("Tur Sayısı",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              _buildRoundsSelector(controller),
-            ],
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                OutlinedButton(
-                  onPressed: controller.resetDefaults,
-                  child: const Text("Sıfırla"),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    // değerler zaten controller’da kaydedildi
-                    Navigator.pop(context);
-                  },
-                  child: const Text("Kaydet ve Geri Dön"),
-                ),
-              ],
-            ),
-          ],
+      appBar: AppBar(
+        title: const Text('Ayarlar'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.back(),
         ),
       ),
-    );
-  }
-   //mode seçen widget
-  Widget _buildModeSelector(SettingsController c) {
-    final labels = {
-      GameMode.classic: 'classic',
-      GameMode.endless: 'endless',
-      GameMode.timed: 'timed',
-    };
-    return Wrap(
-      spacing: 12,
-      children: GameMode.values.map((mode) {
-        return ChoiceChip(
-          label: Text(labels[mode]!),
-          selected: c.mode == mode,
-          onSelected: (_) => c.setMode(mode),
-        );
-      }).toList(),
-    );
-  }
- //zorluk seviyesini seçen widget
-  Widget _buildDifficultySelector(SettingsController c) {
-    final labels = {
-      Difficulty.easy: 'easy',
-      Difficulty.normal: 'normal',
-      Difficulty.hard: 'hard',
-    };
-    return Wrap(
-      spacing: 12,
-      children: Difficulty.values.map((diff) {
-        return ChoiceChip(
-          label: Text(labels[diff]!),
-          selected: c.difficulty == diff,
-          onSelected: (_) => c.setDifficulty(diff),
-        );
-      }).toList(),
-    );
-  }
- // kaç tur oynayacağını seçen widget
-  Widget _buildRoundsSelector(SettingsController c) {
-    return Slider(
-      value: c.rounds.toDouble(),
-      min: 1,
-      max: 20,
-      divisions: 19,
-      label: "${c.rounds}",
-      onChanged: (val) => c.setRounds(val.toInt()),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Oyun', style: t.textTheme.titleLarge),
+
+          const SizedBox(height: 12),
+          Text(
+            'Tur başına can (hak) sayısı: $_livesTemp',
+            style: t.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+
+          // Hak sayısı slider
+          Slider(
+            value: _livesTemp.toDouble(),
+            min: 3,
+            max: 10,
+            divisions: 7,
+            label: '$_livesTemp',
+            onChanged: (v) => setState(() => _livesTemp = v.round()),
+          ),
+
+          // Hızlı preset düğmeleri
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [3, 4, 5, 6, 7, 8, 9, 10].map((n) {
+              final selected = _livesTemp == n;
+              return ChoiceChip(
+                label: Text('$n'),
+                selected: selected,
+                onSelected: (_) => setState(() => _livesTemp = n),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 24),
+          Text(
+            'Not: Buradaki hak sayısı yeni tur başladığında uygulanır.',
+            style: t.textTheme.bodySmall,
+          ),
+
+          const SizedBox(height: 28),
+          FilledButton.icon(
+            onPressed: _applyAndStartNewRound,
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Kaydet ve Yeni Oyun Başlat'),
+          ),
+
+          const SizedBox(height: 12),
+         
+        
+
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
+
+          // İsteğe bağlı: Uygulama hakkında kısa açıklama
+          Text('Hakkında', style: t.textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(
+            'Adam Asmaca – Film başlıklarıyla oynanan Türkçe destekli bir kelime oyunu. '
+            'Kelimeler bölünmeden satır sonlarında düzgünce hizalanır, ipucu için ampul simgesine dokunabilirsin.',
+            style: t.textTheme.bodyMedium,
+          ),
+        ],
+      ),
     );
   }
 }

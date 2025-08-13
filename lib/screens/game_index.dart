@@ -1,436 +1,363 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import 'package:hangman/Controller/index_controller.dart';
-import 'package:hangman/services/dio_get_movie.dart';
-import 'package:hangman/services/dio_get_detail.dart';
-import 'package:hangman/Controller/settings_controller.dart';
+import 'package:get/get.dart';
+import '../Controller/index_controller.dart';
+import '../widgets/hangman_figure.dart';
 
 class GameIndex extends StatefulWidget {
-  final String word;
-  final int movieId;
-  final int currentRound;
-  final int totalRounds;
-  final int totalScore;
-
-  const GameIndex({
-    super.key,
-    required this.word,
-    required this.movieId,
-    required this.currentRound,
-    required this.totalRounds,
-    required this.totalScore,
-  });
+  const GameIndex({super.key});
 
   @override
   State<GameIndex> createState() => _GameIndexState();
 }
 
 class _GameIndexState extends State<GameIndex> {
-  final List<String> alphabet = 'ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ'.split('');
-  late final Set<String> allowed = Set.of(alphabet);
+  late final IndexController controller;
+  Worker? _gameOverWorker;
 
-  final Set<String> dogru = {};
-  final Set<String> yanlis = {};
-
-  late int hak;
-  late GameMode mode;
-  late Difficulty difficulty;
-
-  int totalScore = 0;
-  bool _finished = false;
-
-  Timer? _timer;
-  int secondsLeft = 0;
-  bool _dialogOpen = false;
+  // Dialog'un üst üste açılmasını engelleyen bayrak
+  bool _dialogShown = false;
 
   @override
   void initState() {
     super.initState();
-    final s = context.read<SettingsController>();
+    controller = Get.find<IndexController>();
 
-    mode = s.mode;
-    difficulty = s.difficulty;
-    hak = s.initialLives;
-    totalScore = widget.totalScore;
-
-    if (mode == GameMode.timed) {
-      secondsLeft = s.roundSeconds;
-      _startTimer();
-    }
+    // Oyun bitti mi dinle, popup göster
+    _gameOverWorker = ever<bool>(controller.isGameOver, (over) {
+      if (over && !_dialogShown) {
+        _dialogShown = true;
+        _showEndDialog(win: controller.isWin.value).whenComplete(() {
+          // dialog gerçekten kapanınca yeniden açılabilir hale getir
+          _dialogShown = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _gameOverWorker?.dispose();
     super.dispose();
   }
 
-  bool _isWin(String u) {
-    for (final ch in u.split('')) {
-      if (ch == ' ') continue;
-      if (allowed.contains(ch) && !dogru.contains(ch)) return false;
-    }
-    return true;
-  }
+  Future<void> _showEndDialog({required bool win}) {
+    Get.closeAllSnackbars();
+    final title = win ? 'Kazandın 🎉' : 'Kaybettin 😔';
+    final desc = win
+        ? 'Harika iş! Yeni bir kelimeyle devam etmek ister misin?'
+        : 'Üzülme, bir sonraki kelimede şansın açık!';
 
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) async {
-      if (!mounted) return;
-      setState(() => secondsLeft--);
-      if (secondsLeft <= 0) {
-        t.cancel();
-        await _endRound(win: false);
-      }
-    });
-  }
-
-  Future<void> _showCorrectAnswer() async {
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Bilemediniz, Doğru Cevap:"),
-        content: Text(widget.word),
+    return Get.dialog(
+      AlertDialog(
+        title: Text(title),
+        content: Text(desc),
         actions: [
+          // Ana menü
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Tamam"),
+            onPressed: () {
+              Get.back(); // önce dialogu kapat
+              Future.microtask(() => Get.offAllNamed('/')); // sonra yönlen
+            },
+            child: const Text('Ana Menü'),
+          ),
+
+          // Yeni oyun
+          FilledButton.icon(
+            onPressed: () {
+              Get.back(); // önce dialogu kapat
+              // dialog tamamen kapandıktan sonra yeni tur başlat
+
+              Future.microtask(() => controller.startNewGame());
+            },
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Yeni Oyun'),
           ),
         ],
       ),
+      barrierDismissible: false, // dışarı tıklayınca kapanmasın
     );
-  }
-
-  Future<void> _showFinalCongratsDialog() async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Tebrikler!"),
-        content: Text(
-          "Tüm turları başarıyla tamamladınız.\nToplam Puanınız: $totalScore",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).popUntil((r) => r.isFirst),
-            child: const Text("Ana Menüye Dön"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _endRound({required bool win}) async {
-    if (_dialogOpen || !mounted) return;
-    _dialogOpen = true;
-
-    final isClassic =
-        context.read<SettingsController>().mode == GameMode.classic;
-    final isLastRound = widget.currentRound >= widget.totalRounds;
-
-    // Son tur + kazandı → sadece final tebrik
-    if (isClassic && isLastRound && win) {
-      _dialogOpen = false;
-      await _showFinalCongratsDialog();
-      return;
-    }
-
-    // Normal round popup (son turda kaybediyorsa metni de ona göre)
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dCtx) => AlertDialog(
-        title: Text(win ? "Tebrikler!" : "Bilemediniz"),
-        content: Text(
-          win
-              ? "Filmi bildiniz. Bonus +20 eklendi."
-              : (isClassic && isLastRound
-                  ? "Kaybettiniz! Oyun sona erdi."
-                  : "Filmi bilemediniz! Yeni tura geçiliyor."),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dCtx).pop(),
-            child: const Text("Tamam"),
-          ),
-        ],
-      ),
-    );
-
-    _dialogOpen = false;
-    if (!mounted) return;
-
-    // Son tur + kaybetti → ana menüye dön (final pop yok)
-    if (isClassic && isLastRound && !win) {
-      Navigator.of(context).popUntil((r) => r.isFirst);
-      return;
-    }
-
-    // Ara turlarda devam
-    await _nextGame();
-  }
-
-  Future<void> _nextGame() async {
-    _timer?.cancel();
-    final movies = await fetchMovies();
-    final rnd = IndexController.getRandomMovie(movies);
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => GameIndex(
-          word: rnd['title'],
-          movieId: rnd['id'],
-          currentRound: widget.currentRound + 1,
-          totalRounds: widget.totalRounds,
-          totalScore: totalScore,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showHint() async {
-    if (_dialogOpen || !mounted) return;
-    _dialogOpen = true;
-
-    try {
-      final d = await fetchMovieDetail(widget.movieId);
-      final h = buildHintFields(d);
-
-      final text = '''
-Tür: ${h['genres']}
-Çıkış: ${h['release_date']}
-Oy Sayısı: ${h['vote_count']}
-Popülarite: ${h['popularity']}
-
-Özet:
-${h['overview']}
-''';
-
-      await showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("İpucu"),
-          content: SingleChildScrollView(child: Text(text)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Kapat"),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      await showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("İpucu Hatası"),
-          content: Text('$e'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Kapat"),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      _dialogOpen = false;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final wordU = widget.word.toUpperCase();
-    final hidden = wordU
-        .split('')
-        .map((c) => c == ' ' ? ' ' : (dogru.contains(c) ? c : '_'))
-        .join(' ');
-
-    final s = context.watch<SettingsController>();
-
     return Scaffold(
+      appBar: AppBar(
+  title: const Text('Adam Asmaca (GetX ile birlikte)'),
+  actions: [
+    PopupMenuButton<String>(
+      onSelected: (value) {
+        switch (value) {
+          case 'hint':
+            controller.showHint();
+            break;
+          case 'refresh':
+            Get.offAllNamed('/'); // index.dart route
+            break;
+          case 'exit':
+            Get.toNamed('/exist');
+            break;
+        }
+      },
+      itemBuilder: (BuildContext context) => [
+        const PopupMenuItem(
+          value: 'hint',
+          child: Row(
+            children: [
+              Icon(Icons.lightbulb, color: Colors.amber),
+              SizedBox(width: 8),
+              Text('İpucu Göster'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'refresh',
+          child: Row(
+            children: [
+              Icon(Icons.refresh, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('Ana Ekrana Dön'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'exit',
+          child: Row(
+            children: [
+              Icon(Icons.exit_to_app, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Oyundan Çık'),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ],
+      ),
+    
       body: SafeArea(
-        child: Column(
-          children: [
-            // Üst bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () =>
-                        Navigator.of(context).popUntil((r) => r.isFirst),
-                    child: const Text(
-                      "Oyundan Çık",
-                      style: TextStyle(
-                        color: Colors.blue,
-                        decoration: TextDecoration.underline,
-                      ),
+        child: Obx(() {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Kalan Hak: ${controller.lives.value}',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                    Text(
+                      controller.isGameOver.value
+                          ? (controller.isWin.value ? 'Kazandın' : 'Kaybettin')
+                          : '',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: controller.isWin.value
+                                ? Colors.green
+                                : (controller.isGameOver.value
+                                    ? Colors.red
+                                    : null),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Column(
                     children: [
-                      Text(
-                        "Tur: ${widget.currentRound}${s.mode == GameMode.classic ? '/${widget.totalRounds}' : ''}",
+                      HangmanFigure(
+                        wrongCount: controller.wrongLetters.length,
+                        maxSteps: controller.wrongLetters.length +
+                            controller.lives.value, // 🔹 toplam hak
+                        width: 260,
+                        height: 220,
                       ),
-                      const SizedBox(width: 12),
-                      Text("Hak: $hak"),
-                      if (mode == GameMode.timed) ...[
-                        const SizedBox(width: 12),
-                        Text("Süre: $secondsLeft"),
-                      ],
-                      const SizedBox(width: 12),
-                      Text("Puan: $totalScore"),
+                      const SizedBox(height: 12),
+                      _MaskedWordGrouped(
+                        word: controller.currentWord,
+                        guessed: controller.guessed,
+                      ),
+                      const SizedBox(height: 12),
                     ],
                   ),
-                ],
-              ),
-            ),
-
-            // İpucu
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TextButton(
-                  onPressed: _showHint,
-                  child: const Text(
-                    "İpucu",
-                    style: TextStyle(decoration: TextDecoration.underline),
-                  ),
                 ),
               ),
-            ),
 
-            // Görsel (asset)
-            Container(
-              width: 180,
-              height: 200,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/cop_adam.png'),
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
+              // ===================== KLAVYE =====================
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Obx(() {
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: _trKeys.map((ch) {
+                      final isGuessed = controller.guessed.contains(ch);
+                      final isWrong = controller.wrongLetters.contains(ch);
+                      final disabled = isGuessed || controller.isGameOver.value;
 
-            // Kelime
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                hidden,
-                style: const TextStyle(fontSize: 28, letterSpacing: 2),
-              ),
-            ),
-
-            // Alfabe – Expanded ile overflow olmaz
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: alphabet.length,
-                  itemBuilder: (_, i) {
-                    final letter = alphabet[i];
-                    final used =
-                        dogru.contains(letter) || yanlis.contains(letter);
-
-                    return GestureDetector(
-                      onTap: used || hak <= 0 || _finished
-                          ? null
-                          : () => _onLetter(letter, wordU),
-                      child: Stack(
+                      return Stack(
                         alignment: Alignment.center,
                         children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: used ? Colors.grey : Colors.blue,
-                              borderRadius: BorderRadius.circular(6),
+                          SizedBox(
+                            width: 44,
+                            height: 40,
+                            child: ElevatedButton(
+                              onPressed:
+                                  disabled ? null : () => controller.guess(ch),
+                              child: Text(ch),
                             ),
                           ),
-                          Text(letter,
-                              style: const TextStyle(color: Colors.white)),
-                          if (yanlis.contains(letter))
-                            CustomPaint(
-                              size: const Size(40, 40),
-                              painter: _CrossLinePainter(),
+                          if (isGuessed && isWrong)
+                            IgnorePointer(
+                              child: CustomPaint(
+                                size: const Size(44, 40),
+                                painter: _RedCrossPainter(),
+                              ),
                             ),
                         ],
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    }).toList(),
+                  );
+                }),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 42),
+
+              
+              const SizedBox(height: 25),
+            ],
+          );
+        }),
       ),
     );
   }
+}
 
-  Future<void> _onLetter(String letter, String wordU) async {
-    if (_finished) return;
+/// ===================== KELİMELERİ BLOKLAYAN MASKE =====================
+class _MaskedWordGrouped extends StatelessWidget {
+  const _MaskedWordGrouped({required this.word, required this.guessed});
+  final String word;
+  final Set<String> guessed;
 
-    final isHit = wordU.contains(letter);
+  @override
+  Widget build(BuildContext context) {
+    final words = word.split(' ').where((w) => w.isNotEmpty).toList();
 
-    setState(() {
-      if (isHit) {
-        if (!dogru.contains(letter)) {
-          // Harf kelimede kaç kez geçiyor? → o kadar × 5 puan
-          final occurrences = wordU.split('').where((c) => c == letter).length;
-          totalScore += occurrences * 5;
-        }
-        dogru.add(letter);
-      } else {
-        yanlis.add(letter);
-        hak = (hak - 1).clamp(0, 999);
-      }
-    });
-
-    // Kelime tamamlanırsa: bonus +20 (anında)
-    if (isHit && _isWin(wordU)) {
-      if (_finished) return;
-      _finished = true;
-      setState(() => totalScore += 20);
-      await _endRound(win: true);
-      return;
-    }
-
-    // Haklar bitti (timed hariç): önce doğru cevap, sonra kaybet diyalogu
-    if (!isHit && hak == 0) {
-      _finished = true;
-      if (mode != GameMode.timed) {
-        await _showCorrectAnswer();
-      }
-      await _endRound(win: false);
-      return;
-    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 30, // kelimeler arası boşluk
+        runSpacing: 12, // satırlar arası boşluk
+        children: words.map((w) {
+          return LayoutBuilder(
+            builder: (ctx, constraints) {
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: _WordMask(word: w, guessed: guessed),
+                ),
+              );
+            },
+          );
+        }).toList(),
+      ),
+    );
   }
 }
 
-class _CrossLinePainter extends CustomPainter {
+/// Tek bir kelimeyi (harf harf) çizen, tek blokluk yapı
+class _WordMask extends StatelessWidget {
+  const _WordMask({required this.word, required this.guessed});
+  final String word;
+  final Set<String> guessed;
+
+  @override
+  Widget build(BuildContext context) {
+    final letters = word.split('');
+    final textStyle = Theme.of(context)
+        .textTheme
+        .headlineSmall
+        ?.copyWith(fontWeight: FontWeight.w600);
+
+    const letterSpacing = 8.0;
+    const boxWidth = 22.0;
+    const boxHeight = 32.0;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < letters.length; i++) ...[
+          SizedBox(
+            width: boxWidth,
+            height: boxHeight,
+            child: Center(
+              child: Text(
+                guessed.contains(letters[i]) ? letters[i] : '_',
+                style: textStyle,
+              ),
+            ),
+          ),
+          if (i != letters.length - 1) const SizedBox(width: letterSpacing),
+        ],
+      ],
+    );
+  }
+}
+
+/// Tuşun üstüne kırmızı X çizen painter
+class _RedCrossPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 2;
-    canvas
-      ..drawLine(Offset.zero, Offset(size.width, size.height), p)
-      ..drawLine(Offset(size.width, 0), Offset(0, size.height), p);
+      ..color = Colors.red.withOpacity(0.85)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+        const Offset(4, 4), Offset(size.width - 4, size.height - 4), p);
+    canvas.drawLine(Offset(size.width - 4, 4), Offset(4, size.height - 4), p);
   }
 
   @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+/// Türk alfabesi (29 harf) — büyük (istersen X/W'yi kaldır)
+const List<String> _trKeys = [
+  'A',
+  'B',
+  'C',
+  'Ç',
+  'D',
+  'E',
+  'F',
+  'G',
+  'Ğ',
+  'H',
+  'I',
+  'İ',
+  'J',
+  'K',
+  'L',
+  'M',
+  'N',
+  'O',
+  'Ö',
+  'P',
+  'R',
+  'S',
+  'Ş',
+  'T',
+  'U',
+  'Ü',
+  'V',
+  'Y',
+  'Z',
+  'X',
+  'W',
+];

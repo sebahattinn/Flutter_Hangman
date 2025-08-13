@@ -1,104 +1,76 @@
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-enum GameMode { classic, endless, timed }
+class SettingsController extends GetxController {
+  // ---- TMDB ayarları ----
+  final language = 'tr-TR'.obs;
+  final includeAdult = false.obs;
+  final minVoteCount = 0.obs;
 
-enum Difficulty { easy, normal, hard }
+  Map<String, dynamic> tmdbParams({required String apiKey, int page = 1}) => {
+        'api_key': apiKey,
+        'language': language.value,
+        'page': page,
+        'include_adult': includeAdult.value,
+        'vote_count.gte': minVoteCount.value,
+      };
 
-class SettingsController extends ChangeNotifier {
-  // defaults
-  GameMode _mode = GameMode.classic;
-  Difficulty _difficulty = Difficulty.normal;
-  int _rounds = 5;
+  // ---- Başlık filtreleri ----
+  final excludeDigits = true.obs;       // sayı varsa ele
+  final onlyTrLetters = true.obs;       // sadece TR harf + boşluk
+  final _reDigit = RegExp(r'\d');
+  final _reTr = RegExp(r'^[A-Za-zÇĞİÖŞÜçğıöşüxw ]+$');
 
-  static const _kMode = 'mode';
-  static const _kDifficulty = 'difficulty';
-  static const _kRounds = 'rounds';
-
-  bool _loaded = false;
-  bool get isLoaded => _loaded;
-
-  GameMode get mode => _mode;
-  Difficulty get difficulty => _difficulty;
-  int get rounds => _rounds;
-
-  SettingsController() {
-    _load();
+  /// Başlığı TR-upper yapar, yalnız TR harf + boşluk bırakır, fazla boşlukları tekler.
+  String cleanTitleTr(String s) {
+    final up = turkishUpper(s);
+    final kept = up.split('').where((c) => RegExp(r'[A-ZÇĞİÖŞÜXW ]').hasMatch(c)).join();
+    return kept.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  /// Oyuncunun seçtiği oyun modu
-  int get initialLives {
-    switch (_difficulty) {
-      case Difficulty.easy:
-        return 8;
-      case Difficulty.normal:
-        return 6;
-      case Difficulty.hard:
-        return 4;
-    }
+  /// Başlık kurallarına uygun mu?
+  bool isTitleAllowed(String? title) {
+    final t = (title ?? '').trim();
+    if (t.isEmpty) return false;
+    if (excludeDigits.value && _reDigit.hasMatch(t)) return false;
+    if (onlyTrLetters.value && !_reTr.hasMatch(t)) return false;
+    return RegExp(r'[A-ZÇĞİÖŞÜXW]').hasMatch(t); // en az bir harf olsun
   }
 
-  /// Timed mod için tur süresi (saniye)
-  int get roundSeconds {
-    if (_mode != GameMode.timed) return 0;
-    const base = 60;
-    final minus = switch (_difficulty) {
-      Difficulty.easy => 0,
-      Difficulty.normal => 10,
-      Difficulty.hard => 20,
-    };
-    return base - minus;
+  // ---- Oyun ayarları (timer ve difficulty kaldırıldı) ----
+  /// Tur başına can (hak) sayısı. Ayarlardan değiştirilebilir.
+  final livesPerRound = 5.obs;
+
+  void setLivesPerRound(int v) {
+    // 1–20 aralığına sıkıştır
+    if (v < 1) v = 1;
+    if (v > 20) v = 20;
+    livesPerRound.value = v;
   }
 
-  Future<void> _load() async {
-    final sp = await SharedPreferences.getInstance();
-    final m = sp.getInt(_kMode);
-    final d = sp.getInt(_kDifficulty);
-    final r = sp.getInt(_kRounds);
+  // ---- Alfabe / karakter yardımcıları ----
+  static const _alphabet = <String>{
+    'A','B','C','Ç','D','E','F','G','Ğ','H','I','İ','J','K','L','M','N','O','Ö','P','R','S','Ş','T','U','Ü','V','Y','Z','X','W'
+  };
 
-    if (m != null && m >= 0 && m < GameMode.values.length) {
-      _mode = GameMode.values[m];
-    }
-    if (d != null && d >= 0 && d < Difficulty.values.length) {
-      _difficulty = Difficulty.values[d];
-    }
-    if (r != null && r >= 1) {
-      _rounds = r;
-    }
-    _loaded = true;
-    notifyListeners();
-  }
+  bool isAllowedChar(String ch) => _alphabet.contains(ch);
+  String upperChar(String ch) => turkishUpper(ch).characters.first;
 
-  Future<void> _save() async {
-    final sp = await SharedPreferences.getInstance();
-    await sp.setInt(_kMode, _mode.index);
-    await sp.setInt(_kDifficulty, _difficulty.index);
-    await sp.setInt(_kRounds, _rounds);
-  }
+  /// TR farkındalıklı uppercase
+  String turkishUpper(String s) => s
+      .replaceAll('i', 'İ')
+      .replaceAll('ı', 'I')
+      .replaceAll('ş', 'Ş')
+      .replaceAll('ğ', 'Ğ')
+      .replaceAll('ü', 'Ü')
+      .replaceAll('ö', 'Ö')
+      .replaceAll('ç', 'Ç')
+      .toUpperCase();
 
-  void setMode(GameMode mode) {
-    _mode = mode;
-    _save();
-    notifyListeners();
-  }
-
-  void setDifficulty(Difficulty d) {
-    _difficulty = d;
-    _save();
-    notifyListeners();
-  }
-
-  void setRounds(int r) {
-    _rounds = r;
-    _save();
-    notifyListeners();
-  }
-
-  Future<void> resetDefaults() async {
-    _mode = GameMode.classic;
-    _difficulty = Difficulty.normal;
-    _rounds = 5;
-    await _save();
-    notifyListeners();
-  }
+  // ---- Kısa yardımcılar ----
+  void toggleAdult() => includeAdult.value = !includeAdult.value;
+  void toggleExcludeDigits() => excludeDigits.value = !excludeDigits.value;
+  void toggleOnlyTr() => onlyTrLetters.value = !onlyTrLetters.value;
+  void setLanguage(String code) => language.value = code;
+  void setMinVoteCount(int v) => minVoteCount.value = v < 0 ? 0 : v;
 }

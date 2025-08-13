@@ -9,11 +9,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  get: ^4.6.6
   dio: ^5.4.0
   http: ^1.2.0
   flutter_dotenv: ^5.1.0
   cupertino_icons: ^1.0.8
+  get_storage: ^2.1.1
   provider: ^6.0.5
+ 
+ 
   shared_preferences: ^2.2.3
 
 dev_dependencies:
@@ -24,5 +28,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/cop_adam.png   #  dosyayı tek tek ilan etmek zorunda kaldım
+    - assets/cop_adam.png   
     - .env
